@@ -70,9 +70,9 @@ class AtendimentoTests(TestCase):
     def test_telas_e_cadastros(self):
         for url in ['/', '/cardapio/', '/historico/', '/cadastros/pratos/', '/cadastros/combos/', '/cadastros/mesas/', self.url]:
             self.assertEqual(self.client.get(url).status_code, 200, url)
-        self.client.post('/cadastros/pratos/', {'nome': 'Sobremesa', 'preco': '12.50', 'disponivel': 'on'})
+        self.client.post('/cadastros/pratos/', {'nome': 'Sobremesa', 'categoria': 'sobremesa', 'preco': '12.50', 'disponivel': 'on'})
         prato = Prato.objects.get(nome='Sobremesa')
-        self.client.post(f'/cadastros/pratos/{prato.pk}/', {'nome': 'Doce', 'preco': '13.50', 'disponivel': 'on'})
+        self.client.post(f'/cadastros/pratos/{prato.pk}/', {'nome': 'Doce', 'categoria': 'sobremesa', 'preco': '13.50', 'disponivel': 'on'})
         prato.refresh_from_db()
         self.assertEqual(prato.nome, 'Doce')
         self.client.post(f'/cadastros/pratos/{prato.pk}/excluir/')

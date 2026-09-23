@@ -5,16 +5,22 @@ class Command(BaseCommand):
     help = 'Cria um cardápio de exemplo e seis mesas, sem apagar registros.'
     def handle(self, *args, **options):
         dados = [
-            ('Filé da casa', 'Filé grelhado com arroz, feijão e batatas douradas.', '39.90'),
-            ('Frango grelhado', 'Peito de frango com arroz e legumes frescos.', '28.90'),
-            ('Risoto de cogumelos', 'Arroz cremoso com cogumelos e parmesão.', '34.90'),
-            ('Batata rústica', 'Batatas douradas com ervas e molho da casa.', '16.00'),
-            ('Suco de laranja', 'Suco natural de laranja, copo de 300 ml.', '8.00'),
-            ('Pudim artesanal', 'Pudim de leite com calda de caramelo.', '12.00'),
+            ('Filé da casa', 'Filé grelhado com arroz, feijão e batatas douradas.', '39.90', Prato.Categoria.PRINCIPAL),
+            ('Frango grelhado', 'Peito de frango com arroz e legumes frescos.', '28.90', Prato.Categoria.PRINCIPAL),
+            ('Risoto de cogumelos', 'Arroz cremoso com cogumelos e parmesão.', '34.90', Prato.Categoria.PRINCIPAL),
+            ('Batata rústica', 'Batatas douradas com ervas e molho da casa.', '16.00', Prato.Categoria.ACOMPANHAMENTO),
+            ('Suco de laranja', 'Suco natural de laranja, copo de 300 ml.', '8.00', Prato.Categoria.BEBIDA),
+            ('Pudim artesanal', 'Pudim de leite com calda de caramelo.', '12.00', Prato.Categoria.SOBREMESA),
         ]
         pratos = {}
-        for nome, descricao, preco in dados:
-            pratos[nome], _ = Prato.objects.get_or_create(nome=nome, defaults={'descricao': descricao, 'preco': preco})
+        for nome, descricao, preco, categoria in dados:
+            pratos[nome], _ = Prato.objects.get_or_create(
+                nome=nome,
+                defaults={'descricao': descricao, 'preco': preco, 'categoria': categoria},
+            )
+            if pratos[nome].categoria == Prato.Categoria.OUTROS:
+                pratos[nome].categoria = categoria
+                pratos[nome].save(update_fields=['categoria'])
         for nome, descricao, preco, componentes in [
             ('Almoço completo', 'O clássico da casa com bebida e sobremesa.', '54.90', ['Filé da casa', 'Suco de laranja', 'Pudim artesanal']),
             ('Combo leve', 'Uma pausa saborosa com frango e suco natural.', '32.90', ['Frango grelhado', 'Suco de laranja']),

@@ -15,8 +15,18 @@ def inicio(request):
     ocupadas = sum(mesa.atual is not None for mesa in mesas)
     return render(request, 'cardapio/inicio.html', {'mesas': mesas, 'ocupadas': ocupadas, 'livres': len(mesas) - ocupadas})
 
+def filtrar_pratos(request, pratos):
+    termo = request.GET.get('q', '').strip()
+    categoria = request.GET.get('categoria', '')
+    if termo:
+        pratos = pratos.filter(nome__icontains=termo)
+    if categoria:
+        pratos = pratos.filter(categoria=categoria)
+    return pratos
+
+
 def menu(request):
-    return render(request, 'cardapio/menu.html', {'pratos': Prato.objects.filter(disponivel=True), 'combos': Combo.objects.filter(disponivel=True).exclude(pratos__disponivel=False).prefetch_related('pratos').distinct()})
+    return render(request, 'cardapio/menu.html', {'pratos': filtrar_pratos(request, Prato.objects.filter(disponivel=True)), 'categorias': Prato.Categoria.choices, 'combos': Combo.objects.filter(disponivel=True).exclude(pratos__disponivel=False).prefetch_related('pratos').distinct()})
 
 @require_POST
 @transaction.atomic
@@ -84,7 +94,10 @@ def cadastro(request, tipo, pk=None):
         form.save()
         messages.success(request, 'Cadastro salvo.')
         return redirect('cadastro', tipo=tipo)
-    return render(request, 'cardapio/cadastro.html', {'form': form, 'objetos': model.objects.all(), 'titulo': titulo, 'tipo': tipo, 'editando': objeto})
+    objetos = model.objects.all()
+    if tipo == 'pratos':
+        objetos = filtrar_pratos(request, objetos)
+    return render(request, 'cardapio/cadastro.html', {'form': form, 'objetos': objetos, 'categorias': Prato.Categoria.choices, 'titulo': titulo, 'tipo': tipo, 'editando': objeto})
 
 def excluir(request, tipo, pk):
     if tipo not in CADASTROS:

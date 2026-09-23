@@ -1,0 +1,13 @@
+<form method="get" action="{{ filtro_url }}" class="card" role="search" aria-label="Buscar e filtrar pratos">
+    <p><label for="busca-prato">Nome do prato</label>
+    <input id="busca-prato" type="search" name="q" value="{{ request.GET.q }}" placeholder="Digite o nome do prato"></p>
+    <p><label for="categoria-prato">Categoria</label>
+    <select id="categoria-prato" name="categoria">
+        <option value="">Todas as categorias</option>
+        {% for valor, rotulo in categorias %}
+        <option value="{{ valor }}"{% if request.GET.categoria == valor %} selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+    </select></p>
+    <button type="submit">Filtrar pratos</button>
+    <a href="{{ filtro_url }}">Limpar filtros</a>
+</form>

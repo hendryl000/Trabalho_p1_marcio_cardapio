@@ -4,6 +4,15 @@ from django.db import models
 from django.db.models import Q
 
 class Prato(models.Model):
+    class Categoria(models.TextChoices):
+        ENTRADA = 'entrada', 'Entradas'
+        PRINCIPAL = 'principal', 'Pratos principais'
+        ACOMPANHAMENTO = 'acompanhamento', 'Acompanhamentos'
+        SOBREMESA = 'sobremesa', 'Sobremesas'
+        BEBIDA = 'bebida', 'Bebidas'
+        OUTROS = 'outros', 'Outros'
+
+    categoria = models.CharField(max_length=20, choices=Categoria.choices, default=Categoria.OUTROS)
     nome = models.CharField(max_length=100)
     descricao = models.TextField('descrição', blank=True)
     preco = models.DecimalField('preço', max_digits=8, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
