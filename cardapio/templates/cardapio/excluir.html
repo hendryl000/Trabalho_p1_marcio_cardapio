@@ -1,0 +1,1 @@
+{% extends 'cardapio/base.html' %}{% block conteudo %}<section class="card narrow"><h1>Excluir {{ objeto }}?</h1><p>Cadastros utilizados em comandas são preservados para manter o histórico.</p><form method="post">{% csrf_token %}<button>Confirmar exclusão</button></form><a class="back" href="{% url 'cadastro' tipo %}">Cancelar</a></section>{% endblock %}
