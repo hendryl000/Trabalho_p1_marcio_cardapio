@@ -4,7 +4,13 @@ from .models import Prato, Combo, Mesa, Item
 class PratoForm(forms.ModelForm):
     class Meta:
         model = Prato
-        fields = ['nome', 'descricao', 'preco', 'disponivel']
+        fields = ['nome', 'descricao', 'categoria', 'preco', 'disponivel']
+
+    def clean_preco(self):
+        preco = self.cleaned_data.get('preco')
+        if preco is not None and preco <= 0:
+            raise forms.ValidationError('O preço do prato deve ser maior que zero.')
+        return preco
 
 class ComboForm(forms.ModelForm):
     class Meta:
