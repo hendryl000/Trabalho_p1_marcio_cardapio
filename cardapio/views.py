@@ -7,7 +7,7 @@ from django.db.models.deletion import ProtectedError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from .forms import PratoForm, ComboForm, MesaForm, ItemForm
 from .models import Prato, Combo, Mesa, Comanda, Item
 
@@ -131,3 +131,43 @@ def excluir(request, tipo, pk):
             messages.error(request, 'Cadastro com histórico não pode ser excluído. Pratos e combos podem ser marcados como indisponíveis.')
         return redirect('cadastro', tipo=tipo)
     return render(request, 'cardapio/excluir.html', {'objeto': objeto, 'tipo': tipo})
+
+
+@require_GET
+def cardapio_publico(request, organizacao_id):
+    """Catálogo público somente leitura, sempre restrito ao restaurante da URL."""
+    from core.models import Organizacao
+    org = get_object_or_404(Organizacao, pk=organizacao_id)
+    pratos = list(Prato.objects.filter(organizacao=org, disponivel=True))
+    combos = list(Combo.objects.filter(organizacao=org, disponivel=True)
+                  .exclude(pratos__disponivel=False)
+                  .exclude(pratos__isnull=True)
+                  .exclude(pratos__in=Prato.objects.exclude(organizacao=org))
+                  .prefetch_related(Prefetch('pratos', queryset=Prato.objects.filter(organizacao=org)))
+                  .distinct())
+    produtos = []
+    for combo in combos:
+        produtos.append({'key': f'combo-{combo.pk}', 'nome': combo.nome,
+                         'descricao': combo.descricao, 'categoria': 'combos',
+                         'categoria_nome': 'Combos da casa', 'preco': combo.preco,
+                         'centavos': int(combo.preco * 100), 'arte': 'combo',
+                         'componentes': ' + '.join(p.nome for p in combo.pratos.all())})
+    artes = {'bebida': 'drink', 'sobremesa': 'dessert', 'acompanhamento': 'side', 'entrada': 'side'}
+    for prato in pratos:
+        produtos.append({'key': f'prato-{prato.pk}', 'nome': prato.nome,
+                         'descricao': prato.descricao, 'categoria': prato.categoria,
+                         'categoria_nome': prato.get_categoria_display(), 'preco': prato.preco,
+                         'centavos': int(prato.preco * 100), 'arte': artes.get(prato.categoria, 'meal')})
+    categorias = [('combos', 'Combos da casa')] + list(Prato.Categoria.choices)
+    categorias = [(key, label) for key, label in categorias if any(p['categoria'] == key for p in produtos)]
+    # Fallback sem JavaScript: busca e categorias continuam funcionando por GET.
+    termo = request.GET.get('q', '').strip()
+    categoria = request.GET.get('categoria', '')
+    visiveis = [p for p in produtos if (not categoria or p['categoria'] == categoria)
+                and (not termo or termo.casefold() in (p['nome'] + ' ' + p['descricao'] + ' ' + p.get('componentes', '')).casefold())]
+    catalogo = [{'key': p['key'], 'nome': p['nome'], 'centavos': p['centavos']} for p in produtos]
+    return render(request, 'cardapio/publico.html', {
+        'organizacao': org, 'nome_restaurante': 'À Mesa' if org.nome == 'Organização padrão' else org.nome,
+        'produtos': produtos, 'visiveis': visiveis, 'categorias': categorias, 'catalogo': catalogo,
+        'termo': termo, 'categoria_atual': categoria,
+    })

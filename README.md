@@ -113,3 +113,24 @@ Para repetir: `python manage.py test cardapio.test_isolamento cardapio.test_migr
 No PC desta atividade, as contas locais `teste_a` e `teste_b` já têm perfis em organizações distintas e dados de demonstração. Suas senhas ficam no arquivo local `ACESSOS_TESTE_LOCAL.txt`, fora do repositório. `admin_local` preservou a senha e foi vinculado à organização padrão.
 
 Verificação adicional no servidor local: login HTTP com `teste_a` e `teste_b`, listagem JSON com 7 pratos de cada organização (IDs disjuntos) e tentativa de acessar prato B como A retornando HTTP 404.
+
+
+## Cardápio público para os clientes
+
+O endereço `/menu/<id-da-organizacao>/` abre o catálogo do restaurante **sem login**. No ambiente local, acesse http://127.0.0.1:8000/menu/1/ para a organização padrão. O link **Cardápio do cliente ↗** no cabeçalho interno leva ao catálogo da organização do usuário.
+
+- Layout próprio, responsivo, com ilustrações SVG locais e identificação do restaurante. As ilustrações representam categorias; não são fotografias dos produtos.
+- Busca instantânea por nome/descrição/componentes, categorias e estado vazio. Os filtros também funcionam por GET sem JavaScript.
+- Somente pratos disponíveis e combos disponíveis com componentes disponíveis da mesma organização são exibidos. Combos vazios ou com vínculos inconsistentes não aparecem.
+- **Minha escolha** permite selecionar itens, ajustar quantidades e conferir o total. A lista fica no navegador, separada por organização, e remove referências a produtos que deixaram de estar no catálogo ao recarregar a página.
+- A lista é uma ajuda para conversar com o atendente: **não envia pedido, não reserva produto e não cria comanda**. Preços são calculados em centavos; taxas adicionais não são incluídas.
+- Essa rota pública aceita apenas GET/HEAD. API, cadastros, mesas e comandas continuam exigindo autenticação e isolamento por perfil. Apenas o catálogo foi tornado público.
+- Não há dependências externas de fontes/imagens nem nova migração de banco.
+
+Para compartilhar com clientes fora deste PC, é necessário hospedar o Django e usar o domínio da implantação. O endereço `127.0.0.1` é apenas local; o projeto não foi publicado na internet.
+
+### Validação do cardápio público
+
+**34 testes passaram**, incluindo acesso anônimo, isolamento, indisponibilidade, rejeição de escrita, combinações inconsistentes, escape de conteúdo e filtros sem JavaScript. Mantidas todas as regressões das aulas anteriores.
+
+No navegador: conferidos visual padrão e largura de 390 px, busca, categorias, mensagem sem resultados, adição, aumento/redução de quantidade, exclusão da seleção e total (2 pudins de R$ 12,00 = R$ 24,00). Não houve transbordamento horizontal da página no celular.
