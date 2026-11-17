@@ -1,9 +1,17 @@
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
+from core.models import Organizacao
 from cardapio.models import Prato, Combo, Mesa
 
 class Command(BaseCommand):
     help = 'Cria um cardápio de exemplo e seis mesas, sem apagar registros.'
+    def add_arguments(self, parser):
+        parser.add_argument('--organizacao', type=int, required=True, help='ID da organização que receberá os exemplos.')
+
     def handle(self, *args, **options):
+        try:
+            org = Organizacao.objects.get(pk=options['organizacao'])
+        except Organizacao.DoesNotExist:
+            raise CommandError('Organização inexistente.')
         dados = [
             ('Filé da casa', 'Filé grelhado com arroz, feijão e batatas douradas.', '39.90', Prato.Categoria.PRINCIPAL),
             ('Frango grelhado', 'Peito de frango com arroz e legumes frescos.', '28.90', Prato.Categoria.PRINCIPAL),
@@ -15,7 +23,7 @@ class Command(BaseCommand):
         pratos = {}
         for nome, descricao, preco, categoria in dados:
             pratos[nome], _ = Prato.objects.get_or_create(
-                nome=nome,
+                nome=nome, organizacao=org,
                 defaults={'descricao': descricao, 'preco': preco, 'categoria': categoria},
             )
             if pratos[nome].categoria == Prato.Categoria.OUTROS:
@@ -25,9 +33,9 @@ class Command(BaseCommand):
             ('Almoço completo', 'O clássico da casa com bebida e sobremesa.', '54.90', ['Filé da casa', 'Suco de laranja', 'Pudim artesanal']),
             ('Combo leve', 'Uma pausa saborosa com frango e suco natural.', '32.90', ['Frango grelhado', 'Suco de laranja']),
         ]:
-            combo, criado = Combo.objects.get_or_create(nome=nome, defaults={'descricao': descricao, 'preco': preco})
+            combo, criado = Combo.objects.get_or_create(nome=nome, organizacao=org, defaults={'descricao': descricao, 'preco': preco})
             if criado:
                 combo.pratos.set([pratos[n] for n in componentes])
         for numero in range(1, 7):
-            Mesa.objects.get_or_create(numero=numero, defaults={'capacidade': 4 if numero < 5 else 6})
+            Mesa.objects.get_or_create(numero=numero, organizacao=org, defaults={'capacidade': 4 if numero < 5 else 6})
         self.stdout.write(self.style.SUCCESS('Cardápio de exemplo e mesas prontos.'))

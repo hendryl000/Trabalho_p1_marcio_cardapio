@@ -1,3 +1,5 @@
+from core.models import Organizacao, Perfil
+from django.contrib.auth import get_user_model
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APIClient, APITestCase
@@ -7,12 +9,14 @@ from .models import Combo, Comanda, Item, Mesa, Prato
 
 class PratoAPITests(APITestCase):
     def setUp(self):
+        self.org = Organizacao.objects.create(nome='Restaurante testes')
         self.user = get_user_model().objects.create_user('teste', password='senha-teste-123')
+        Perfil.objects.create(usuario=self.user, organizacao=self.org)
         self.client.login(username='teste', password='senha-teste-123')
         self.url = reverse('api:prato-list')
         self.dados = {'nome': 'Arroz', 'descricao': 'Porção', 'categoria': 'acompanhamento',
                       'preco': '12.50', 'disponivel': True}
-        self.prato = Prato.objects.create(**self.dados)
+        self.prato = Prato.objects.create(organizacao=self.org, **self.dados)
         self.detail = reverse('api:prato-detail', args=[self.prato.pk])
 
     def test_crud_com_sessao(self):
@@ -50,15 +54,15 @@ class PratoAPITests(APITestCase):
         self.assertEqual(self.client.post(self.url, {**self.dados, 'preco': '0.01'}, format='json').status_code, 201)
 
     def test_exclusao_preserva_combo(self):
-        combo = Combo.objects.create(nome='Almoço', preco='20.00')
+        combo = Combo.objects.create(organizacao=self.org, nome='Almoço', preco='20.00')
         combo.pratos.add(self.prato)
         self.assertEqual(self.client.delete(self.detail).status_code, 400)
         self.assertTrue(combo.pratos.filter(pk=self.prato.pk).exists())
 
     def test_exclusao_preserva_historico(self):
-        mesa = Mesa.objects.create(numero=1)
-        comanda = Comanda.objects.create(mesa=mesa)
-        Item.objects.create(comanda=comanda, prato=self.prato, nome=self.prato.nome,
+        mesa = Mesa.objects.create(organizacao=self.org, numero=1)
+        comanda = Comanda.objects.create(organizacao=self.org, mesa=mesa)
+        Item.objects.create(organizacao=self.org, comanda=comanda, prato=self.prato, nome=self.prato.nome,
                             preco_unitario=self.prato.preco)
         self.assertEqual(self.client.delete(self.detail).status_code, 400)
         self.assertTrue(Prato.objects.filter(pk=self.prato.pk).exists())

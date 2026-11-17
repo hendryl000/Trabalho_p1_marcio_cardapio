@@ -1,3 +1,6 @@
+from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch
+from core.tenancy import org_atual
 from django.contrib import messages
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
@@ -8,8 +11,9 @@ from django.views.decorators.http import require_POST
 from .forms import PratoForm, ComboForm, MesaForm, ItemForm
 from .models import Prato, Combo, Mesa, Comanda, Item
 
+@login_required
 def inicio(request):
-    mesas = list(Mesa.objects.prefetch_related('comandas__itens'))
+    mesas = list(Mesa.objects.filter(organizacao=org_atual(request)).prefetch_related(Prefetch('comandas', queryset=Comanda.objects.filter(organizacao=org_atual(request), fechada_em__isnull=True))))
     for mesa in mesas:
         mesa.atual = next((c for c in mesa.comandas.all() if c.aberta), None)
     ocupadas = sum(mesa.atual is not None for mesa in mesas)
@@ -25,20 +29,23 @@ def filtrar_pratos(request, pratos):
     return pratos
 
 
+@login_required
 def menu(request):
-    return render(request, 'cardapio/menu.html', {'pratos': filtrar_pratos(request, Prato.objects.filter(disponivel=True)), 'categorias': Prato.Categoria.choices, 'combos': Combo.objects.filter(disponivel=True).exclude(pratos__disponivel=False).prefetch_related('pratos').distinct()})
+    return render(request, 'cardapio/menu.html', {'pratos': filtrar_pratos(request, Prato.objects.filter(organizacao=org_atual(request), disponivel=True)), 'categorias': Prato.Categoria.choices, 'combos': Combo.objects.filter(organizacao=org_atual(request), disponivel=True).exclude(pratos__disponivel=False).prefetch_related(Prefetch('pratos', queryset=Prato.objects.filter(organizacao=org_atual(request)))).distinct()})
 
 @require_POST
 @transaction.atomic
+@login_required
 def abrir(request, pk):
-    mesa = get_object_or_404(Mesa.objects.select_for_update(), pk=pk)
-    conta, _ = Comanda.objects.get_or_create(mesa=mesa, fechada_em=None)
+    mesa = get_object_or_404(Mesa.objects.select_for_update(), pk=pk, organizacao=org_atual(request))
+    conta, _ = Comanda.objects.get_or_create(mesa=mesa, fechada_em=None, organizacao=org_atual(request))
     return redirect('comanda', pk=conta.pk)
 
 @transaction.atomic
+@login_required
 def comanda(request, pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update(), pk=pk)
-    form = ItemForm(request.POST if request.method == 'POST' else None)
+    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
+    form = ItemForm(request.POST if request.method == 'POST' else None, org=org_atual(request))
     if request.method == 'POST':
         if not conta.aberta:
             messages.error(request, 'Esta conta já está fechada e não pode ser alterada.')
@@ -47,6 +54,7 @@ def comanda(request, pk):
             item = form.save(commit=False)
             produto = item.prato or item.combo
             item.comanda = conta
+            item.organizacao = org_atual(request)
             item.nome = produto.nome
             item.preco_unitario = produto.preco
             item.save()
@@ -56,18 +64,20 @@ def comanda(request, pk):
 
 @require_POST
 @transaction.atomic
+@login_required
 def remover_item(request, pk, item_pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update(), pk=pk)
+    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
     if conta.aberta:
-        get_object_or_404(Item, pk=item_pk, comanda=conta).delete()
+        get_object_or_404(Item, pk=item_pk, comanda=conta, organizacao=org_atual(request)).delete()
         messages.success(request, 'Item removido.')
     else:
         messages.error(request, 'Não é possível alterar uma conta fechada.')
     return redirect('comanda', pk=pk)
 
 @transaction.atomic
+@login_required
 def fechar(request, pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update(), pk=pk)
+    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
     if not conta.aberta:
         return redirect('comanda', pk=pk)
     if request.method == 'POST':
@@ -78,32 +88,38 @@ def fechar(request, pk):
         return redirect('comanda', pk=pk)
     return render(request, 'cardapio/fechar.html', {'conta': conta})
 
+@login_required
 def historico(request):
-    return render(request, 'cardapio/historico.html', {'contas': Comanda.objects.filter(fechada_em__isnull=False).select_related('mesa')})
+    return render(request, 'cardapio/historico.html', {'contas': Comanda.objects.filter(organizacao=org_atual(request), fechada_em__isnull=False).select_related('mesa')})
 
 # Mesmo fluxo de ModelForm da Aula 5, reutilizado pelos três cadastros.
 CADASTROS = {'pratos': (Prato, PratoForm, 'Pratos'), 'combos': (Combo, ComboForm, 'Combos'), 'mesas': (Mesa, MesaForm, 'Mesas')}
 
+@login_required
 def cadastro(request, tipo, pk=None):
     if tipo not in CADASTROS:
         raise Http404
     model, form_class, titulo = CADASTROS[tipo]
-    objeto = get_object_or_404(model, pk=pk) if pk else None
-    form = form_class(request.POST if request.method == 'POST' else None, instance=objeto)
+    objeto = get_object_or_404(model, pk=pk, organizacao=org_atual(request)) if pk else None
+    form = form_class(request.POST if request.method == 'POST' else None, instance=objeto, org=org_atual(request))
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        objeto = form.save(commit=False)
+        objeto.organizacao = org_atual(request)
+        objeto.save()
+        form.save_m2m()
         messages.success(request, 'Cadastro salvo.')
         return redirect('cadastro', tipo=tipo)
-    objetos = model.objects.all()
+    objetos = model.objects.filter(organizacao=org_atual(request))
     if tipo == 'pratos':
         objetos = filtrar_pratos(request, objetos)
     return render(request, 'cardapio/cadastro.html', {'form': form, 'objetos': objetos, 'categorias': Prato.Categoria.choices, 'titulo': titulo, 'tipo': tipo, 'editando': objeto})
 
+@login_required
 def excluir(request, tipo, pk):
     if tipo not in CADASTROS:
         raise Http404
     model, _, _ = CADASTROS[tipo]
-    objeto = get_object_or_404(model, pk=pk)
+    objeto = get_object_or_404(model, pk=pk, organizacao=org_atual(request))
     if request.method == 'POST':
         try:
             if tipo == 'pratos' and objeto.combos.exists():

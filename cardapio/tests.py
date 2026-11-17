@@ -1,3 +1,5 @@
+from core.models import Organizacao, Perfil
+from django.contrib.auth import get_user_model
 from decimal import Decimal
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -5,9 +7,13 @@ from .models import Prato, Combo, Mesa, Comanda, Item
 
 class AtendimentoTests(TestCase):
     def setUp(self):
-        self.mesa = Mesa.objects.create(numero=1)
-        self.prato = Prato.objects.create(nome='Prato teste', preco='19.90')
-        self.combo = Combo.objects.create(nome='Combo teste', preco='25.00')
+        self.org = Organizacao.objects.create(nome='Restaurante testes')
+        self.user = get_user_model().objects.create_user('teste_local')
+        Perfil.objects.create(usuario=self.user, organizacao=self.org)
+        self.client.force_login(self.user)
+        self.mesa = Mesa.objects.create(organizacao=self.org, numero=1)
+        self.prato = Prato.objects.create(organizacao=self.org, nome='Prato teste', preco='19.90')
+        self.combo = Combo.objects.create(organizacao=self.org, nome='Combo teste', preco='25.00')
         self.combo.pratos.add(self.prato)
         self.client.post(reverse('abrir', args=[self.mesa.pk]))
         self.conta = Comanda.objects.get()
@@ -54,7 +60,7 @@ class AtendimentoTests(TestCase):
     def test_remocao_recalcula_e_nao_acessa_outra_comanda(self):
         self.adicionar()
         item = Item.objects.get()
-        outra = Comanda.objects.create(mesa=Mesa.objects.create(numero=2))
+        outra = Comanda.objects.create(organizacao=self.org, mesa=Mesa.objects.create(organizacao=self.org, numero=2))
         self.assertEqual(self.client.post(reverse('remover_item', args=[outra.pk, item.pk])).status_code, 404)
         self.client.post(reverse('remover_item', args=[self.conta.pk, item.pk]))
         self.assertEqual(self.conta.total, Decimal('0.00'))

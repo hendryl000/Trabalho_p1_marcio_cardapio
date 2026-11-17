@@ -1,3 +1,5 @@
+from core.models import Organizacao, Perfil
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from .models import Prato
@@ -6,9 +8,15 @@ from .models import Prato
 class BuscaPratosTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.bolo = Prato.objects.create(nome='Bolo de chocolate', preco='12.00', categoria='sobremesa')
-        cls.bebida = Prato.objects.create(nome='Chocolate quente', preco='8.00', categoria='bebida')
-        cls.oculto = Prato.objects.create(nome='Bolo indisponível', preco='10.00', categoria='sobremesa', disponivel=False)
+        cls.org = Organizacao.objects.create(nome='Restaurante testes')
+        cls.user = get_user_model().objects.create_user('teste_busca')
+        Perfil.objects.create(usuario=cls.user, organizacao=cls.org)
+        cls.bolo = Prato.objects.create(organizacao=cls.org, nome='Bolo de chocolate', preco='12.00', categoria='sobremesa')
+        cls.bebida = Prato.objects.create(organizacao=cls.org, nome='Chocolate quente', preco='8.00', categoria='bebida')
+        cls.oculto = Prato.objects.create(organizacao=cls.org, nome='Bolo indisponível', preco='10.00', categoria='sobremesa', disponivel=False)
+
+    def setUp(self):
+        self.client.force_login(self.user)
 
     def test_busca_categoria_e_combinacao(self):
         for url, chave in [(reverse('menu'), 'pratos'), (reverse('cadastro', args=['pratos']), 'objetos')]:

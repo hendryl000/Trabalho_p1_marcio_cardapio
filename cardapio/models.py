@@ -1,9 +1,10 @@
 from decimal import Decimal
+from core.models import DaOrganizacao
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 
-class Prato(models.Model):
+class Prato(DaOrganizacao):
     class Categoria(models.TextChoices):
         ENTRADA = 'entrada', 'Entradas'
         PRINCIPAL = 'principal', 'Pratos principais'
@@ -22,7 +23,7 @@ class Prato(models.Model):
     def __str__(self):
         return self.nome
 
-class Combo(models.Model):
+class Combo(DaOrganizacao):
     nome = models.CharField(max_length=100)
     descricao = models.TextField('descrição', blank=True)
     pratos = models.ManyToManyField(Prato, related_name='combos')
@@ -33,15 +34,16 @@ class Combo(models.Model):
     def __str__(self):
         return self.nome
 
-class Mesa(models.Model):
-    numero = models.PositiveIntegerField('número', unique=True, validators=[MinValueValidator(1)])
+class Mesa(DaOrganizacao):
+    numero = models.PositiveIntegerField('número', validators=[MinValueValidator(1)])
     capacidade = models.PositiveIntegerField(default=4, validators=[MinValueValidator(1)])
     class Meta:
         ordering = ['numero']
+        constraints = [models.UniqueConstraint(fields=['organizacao', 'numero'], name='mesa_numero_por_org')]
     def __str__(self):
         return f'Mesa {self.numero:02d}'
 
-class Comanda(models.Model):
+class Comanda(DaOrganizacao):
     mesa = models.ForeignKey(Mesa, on_delete=models.PROTECT, related_name='comandas')
     aberta_em = models.DateTimeField(auto_now_add=True)
     fechada_em = models.DateTimeField(null=True, blank=True)
@@ -56,11 +58,11 @@ class Comanda(models.Model):
     def total(self):
         if not self.aberta:
             return self.total_fechado
-        return sum((item.subtotal for item in self.itens.all()), Decimal('0.00'))
+        return sum((item.subtotal for item in self.itens.filter(organizacao_id=self.organizacao_id)), Decimal('0.00'))
     def __str__(self):
         return f'Comanda #{self.pk} - {self.mesa}'
 
-class Item(models.Model):
+class Item(DaOrganizacao):
     comanda = models.ForeignKey(Comanda, on_delete=models.PROTECT, related_name='itens')
     prato = models.ForeignKey(Prato, on_delete=models.PROTECT, null=True, blank=True)
     combo = models.ForeignKey(Combo, on_delete=models.PROTECT, null=True, blank=True)

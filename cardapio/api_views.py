@@ -1,3 +1,4 @@
+from core.tenancy import org_atual
 from django.db.models.deletion import ProtectedError
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
@@ -6,14 +7,21 @@ from .models import Prato
 from .serializers import PratoSerializer
 
 
-class PratoListCreate(generics.ListCreateAPIView):
-    queryset = Prato.objects.all()
+class PratoDaOrganizacao:
     serializer_class = PratoSerializer
 
+    def get_queryset(self):
+        return Prato.objects.filter(organizacao=org_atual(self.request))
 
-class PratoDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Prato.objects.all()
-    serializer_class = PratoSerializer
+    def perform_create(self, serializer):
+        serializer.save(organizacao=org_atual(self.request))
+
+
+class PratoListCreate(PratoDaOrganizacao, generics.ListCreateAPIView):
+    pass
+
+
+class PratoDetail(PratoDaOrganizacao, generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         if instance.combos.exists():

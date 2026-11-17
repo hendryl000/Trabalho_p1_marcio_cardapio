@@ -128,7 +128,7 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-apenas-demonstracao-local-cardapio')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
-INSTALLED_APPS += ['rest_framework', 'cardapio']
+INSTALLED_APPS += ['rest_framework', 'core', 'cardapio']
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
 if os.getenv('DB_ENGINE', 'sqlite') == 'postgresql':
@@ -150,3 +150,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'inicio'
+LOGOUT_REDIRECT_URL = 'login'

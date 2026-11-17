@@ -21,3 +21,11 @@ Criar os modelos de organização e perfil antes do isolamento e permissões; de
 - Aula 18: revisão de segurança e testes de isolamento, permissões e regras de negócio.
 - Aula 19: polimento, configuração de ambiente e preparação da implantação/demonstração.
 - Aula 20: entrega da P2 e T2 conforme orientações da disciplina.
+
+
+## Atualização da Aula 14
+
+- Issues #1 e #2: implementadas e verificadas pelo roteiro de isolamento; Item também possui FK direta, conforme o slide da Aula 14.
+- Issue #3: vínculo Perfil/usuário/organização implementado; campo papel permanece para a Aula 15.
+- Issue #4: login obrigatório implementado; matriz administrador/operador permanece para a Aula 15.
+- Demais tarefas continuam planejadas.
