@@ -128,7 +128,7 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-apenas-demonstracao-local-cardapio')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
-INSTALLED_APPS += ['cardapio']
+INSTALLED_APPS += ['rest_framework', 'cardapio']
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
 if os.getenv('DB_ENGINE', 'sqlite') == 'postgresql':
@@ -140,3 +140,13 @@ if os.getenv('DB_ENGINE', 'sqlite') == 'postgresql':
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
     }}
+
+# Aula 13: acesso autenticado por sessao, com CSRF nas escritas.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
