@@ -1,2 +1,16 @@
 {% extends 'cardapio/base.html' %}
-{% block conteudo %}<section class="card"><h1>Entrar no restaurante</h1><p>Use sua conta para acessar os dados da sua organização.</p><form method="post">{% csrf_token %}{{ form.as_p }}<input type="hidden" name="next" value="{{ next }}"><button>Entrar</button></form></section>{% endblock %}
+{% block titulo %}Entrar · À Mesa{% endblock %}
+{% block navegacao %}{% endblock %}
+{% block conteudo %}
+<section class="card login-card">
+  <p class="eyebrow">BEM-VINDO À MESA</p>
+  <h1>Entrar no restaurante</h1>
+  <p class="muted">Acesse sua conta para cuidar do atendimento.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button>Entrar</button>
+  </form>
+</section>
+{% endblock %}
