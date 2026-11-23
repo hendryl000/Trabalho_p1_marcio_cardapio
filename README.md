@@ -134,3 +134,87 @@ Para compartilhar com clientes fora deste PC, é necessário hospedar o Django e
 **34 testes passaram**, incluindo acesso anônimo, isolamento, indisponibilidade, rejeição de escrita, combinações inconsistentes, escape de conteúdo e filtros sem JavaScript. Mantidas todas as regressões das aulas anteriores.
 
 No navegador: conferidos visual padrão e largura de 390 px, busca, categorias, mensagem sem resultados, adição, aumento/redução de quantidade, exclusão da seleção e total (2 pudins de R$ 12,00 = R$ 24,00). Não houve transbordamento horizontal da página no celular.
+
+
+## Aula 17 — Dashboard e relatórios (23/11/2026)
+
+Acesso: `/dashboard/`, pelo link **Dashboard** no menu interno. Exportação: `/dashboard/exportar.csv`. API: `/api/dashboard/`. Os três usam o mesmo filtro validado e a mesma base por organização, centralizada em `cardapio/dashboard.py`.
+
+### Quatro perguntas e quatro tipos de análise
+
+| Pergunta semanal | Tipo | Implementação |
+| --- | --- | --- |
+| Quanto o restaurante vendeu? | KPI | Faturamento com Sum; também cartões de comandas, ticket médio (Avg) e unidades vendidas |
+| Quais produtos mais saíram? | Ranking | Top 5 por quantidade vendida com values, annotate, Sum e order_by |
+| Como as vendas evoluíram ao longo dos meses? | Série temporal | TruncMonth, soma dos valores fechados e gráfico de linha Chart.js |
+| Qual a participação de pratos e combos nas vendas? | Distribuição | Soma condicional de unidades por tipo; barras e valores legíveis |
+
+Todas as análises consideram somente **comandas fechadas**. O filtro usa `fechada_em`, em America/Sao_Paulo. As datas inicial e final são inclusivas; internamente o fim usa limite exclusivo no início do dia seguinte, preservando horas e microssegundos. Campos em branco não limitam esse lado do período; sem datas, considera todo o histórico. Datas inválidas, invertidas ou fora do intervalo 1900–9998 retornam 400, com mensagem no HTML e erros estruturados na API. Nunca há fallback silencioso para dados sem filtro.
+
+Faturamento e ticket usam `total_fechado`, sem recalcular com preços atuais. Ranking e distribuição usam os itens e preços copiados no pedido. Combo conta como uma unidade, não novamente cada componente; neste domínio o model Prato inclui bebidas, sobremesas e acompanhamentos. O ranking agrupa por ID do prato/combo e pelo nome preservado; nomes diferentes ao longo do histórico aparecem em linhas distintas. A série mostra meses com vendas e informa isso na tela; a tabela do gráfico oferece os mesmos números sem depender do canvas. Não há cache compartilhado entre organizações; respostas levam `no-store`.
+
+### Papéis e acesso
+
+O pré-requisito de papéis necessário para esta aula foi adicionado a Perfil: `admin` ou `operador`. Novos perfis são operadores por padrão. A migração promove apenas os perfis dos superusuários já existentes; por isso `admin_local` continua adequado para a demonstração completa. Configure outros papéis pelo Django Admin. Superusuário sem Perfil continua bloqueado nas telas de negócio.
+
+| Recurso | Administrador | Operador |
+| --- | --- | --- |
+| KPIs, ranking e distribuição da própria organização | Sim | Sim |
+| Série mensal no HTML e na API | Sim | Não |
+| CSV, inclusive por URL direta | Sim | Não (403) |
+
+Essa matriz é aplicada ao dashboard/relatórios. A implementação completa de permissões por papel nos demais CRUDs e a API dos demais recursos continuam sendo assuntos das aulas 15/16; esta entrega não os declara concluídos.
+
+### Gráfico e exportação
+
+Chart.js **4.5.1** está versionado em `cardapio/static/cardapio/vendor/`, com licença MIT. O pacote veio do registro npm e teve a integridade SHA-512 conferida. Nenhum CDN é necessário para visualizar o gráfico. Os dados são enviados por `json_script` e lidos por `dashboard.js`. Referências: [integração oficial do Chart.js](https://www.chartjs.org/docs/latest/getting-started/integration.html) e [agregações do Django](https://docs.djangoproject.com/en/5.2/topics/db/aggregation/).
+
+O CSV exporta todas as comandas fechadas da organização no período (a tela lista apenas as últimas 20). Usa `select_related('mesa')`, streaming com iterator, UTF-8 com BOM, separador ponto e vírgula e valores decimais com vírgula. Inclui organização, ID da comanda, mesa, abertura, fechamento e total. Textos iniciados por caracteres de fórmula são neutralizados para planilhas. A URL do botão mantém exatamente as datas aplicadas.
+
+### Consultas sem N+1 — evidências
+
+Foi corrigido o N+1 do salão: cada comanda aberta antes consultava seus itens separadamente. Agora há prefetch de comandas e itens por organização com `to_attr`; a propriedade `total` reutiliza essa lista. A tela da comanda usa o mesmo carregamento e traz a mesa com `select_related`. Perfil e organização são carregados juntos e reutilizados durante a requisição.
+
+Medição com `CaptureQueriesContext`, incluindo autenticação e renderização, na organização de demonstração (12 comandas fechadas):
+
+| Rota | Consultas |
+| --- | ---: |
+| Salão sem comandas abertas | 5 |
+| Cardápio interno | 6 |
+| Histórico | 4 |
+| Dashboard completo | 8 |
+| API do dashboard completo | 7 |
+| Cardápio público | 4 |
+| Detalhe da comanda | 7 |
+| CSV completo, consumindo o streaming | 4 |
+
+Teste de crescimento: salão com 1 e 11 comandas abertas manteve **6 → 6** consultas; dashboard manteve **8 → 8**. Métricas + relatório completo permaneceram em **5 consultas** ao passar de 3 para 53 comandas fechadas. O relatório com acesso à mesa usa **1 consulta**. Esses limites são protegidos por testes. O índice composto `(organizacao, fechada_em)` acompanha os filtros mais frequentes.
+
+Para reproduzir a auditoria:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py auditar_consultas --usuario dashboard_demo
+```
+
+Também é possível definir `LOG_SQL=True` no `.env` local para registrar SQL no terminal; só funciona com DEBUG=True e não é ativado em produção. Não foi necessário instalar Debug Toolbar, pois a aula permite log SQL como alternativa.
+
+### Roteiro executado
+
+- Dados conhecidos: organização A com contas de R$ 20, R$ 30 e R$ 40; organização B com R$ 9.000; comanda aberta excluída.
+- Resultado A: faturamento R$ 90, 3 contas, ticket R$ 30, 7 unidades; distribuição 6 pratos / 1 combo. Série: outubro R$ 20, novembro R$ 70.
+- Filtro de 01/11 a 23/11: R$ 70, 2 contas, ticket R$ 35, 5 unidades; limites de meia-noite e microssegundos verificados.
+- Conferidos: base vazia, preços históricos, IDs/organização enviados na URL, proteção de CSV, ausência de série para operador, autenticação e perfil ausente.
+- **46 testes passaram**, incluindo 12 testes do dashboard e as regressões anteriores. Banco de testes: SQLite; PostgreSQL não foi executado nesta etapa.
+- No navegador: gráfico renderizado, filtro aplicado e CSV baixado. A demonstração filtrada de novembro exibiu R$ 652,60 em 4 contas; o arquivo baixado somou os mesmos R$ 652,60.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run
+```
+
+### Dados para apresentar
+
+`python manage.py popular_dashboard_demo` prepara uma organização exclusiva, **Restaurante demonstração · Dashboard**, com vendas fictícias em três meses. Executá-lo novamente não duplica vendas existentes. Os dados dos outros restaurantes são preservados. No PC desta atividade, `dashboard_demo` tem papel administrador nessa organização; suas credenciais estão em `ACESSO_DASHBOARD_DEMO.txt`, fora do Git. Em outra instalação, crie um usuário e seu Perfil pelo Admin para acessar essa organização.
+
+Backup local anterior à migração: `work/antes-aula17.sqlite3`, fora do repositório. Senhas, sessões, banco e backup não são versionados.

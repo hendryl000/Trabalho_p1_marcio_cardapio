@@ -154,3 +154,11 @@ REST_FRAMEWORK = {
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'inicio'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Diagnóstico opt-in da Aula 17; nunca habilitado em produção.
+if DEBUG and os.getenv('LOG_SQL', 'False').lower() == 'true':
+    LOGGING = {
+        'version': 1, 'disable_existing_loggers': False,
+        'handlers': {'console': {'class': 'logging.StreamHandler'}},
+        'loggers': {'django.db.backends': {'handlers': ['console'], 'level': 'DEBUG'}},
+    }

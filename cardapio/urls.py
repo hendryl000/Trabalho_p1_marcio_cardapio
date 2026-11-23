@@ -1,6 +1,8 @@
 from django.urls import path
-from . import views
+from . import views, dashboard_views
 urlpatterns = [
+    path('dashboard/', dashboard_views.dashboard, name='dashboard'),
+    path('dashboard/exportar.csv', dashboard_views.exportar_csv, name='dashboard_csv'),
     path('menu/<int:organizacao_id>/', views.cardapio_publico, name='cardapio_publico'),
     path('', views.inicio, name='inicio'),
     path('cardapio/', views.menu, name='menu'),

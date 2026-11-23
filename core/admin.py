@@ -21,5 +21,5 @@ class OrganizacaoAdmin(SomenteSuperusuario):
 
 @admin.register(Perfil)
 class PerfilAdmin(SomenteSuperusuario):
-    list_display = ['usuario', 'organizacao']
-    list_filter = ['organizacao']
+    list_display = ['usuario', 'organizacao', 'papel']
+    list_filter = ['organizacao', 'papel']

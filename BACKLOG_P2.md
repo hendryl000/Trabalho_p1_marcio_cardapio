@@ -29,3 +29,10 @@ Criar os modelos de organização e perfil antes do isolamento e permissões; de
 - Issue #3: vínculo Perfil/usuário/organização implementado; campo papel permanece para a Aula 15.
 - Issue #4: login obrigatório implementado; matriz administrador/operador permanece para a Aula 15.
 - Demais tarefas continuam planejadas.
+
+
+## Atualização da Aula 17
+
+Dashboard e relatórios implementados com quatro tipos de métrica, quatro cartões, período validado, Chart.js, CSV e API compartilhando a mesma base isolada. Papéis adicionados para controlar série mensal e exportação; operador mantém acesso aos resumos, conforme o slide. Auditoria de consultas e roteiro documentados no README, com 46 testes passando.
+
+O escopo das issues #8 e #9 foi atendido no que corresponde à Aula 17; ocupação atual continua disponível na tela de mesas. A restrição de todo o dashboard a administradores, sugerida no backlog inicial, foi substituída pela matriz específica do slide (KPIs/ranking para ambos; série e CSV somente para administrador).

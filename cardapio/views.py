@@ -13,7 +13,7 @@ from .models import Prato, Combo, Mesa, Comanda, Item
 
 @login_required
 def inicio(request):
-    mesas = list(Mesa.objects.filter(organizacao=org_atual(request)).prefetch_related(Prefetch('comandas', queryset=Comanda.objects.filter(organizacao=org_atual(request), fechada_em__isnull=True))))
+    mesas = list(Mesa.objects.filter(organizacao=org_atual(request)).prefetch_related(Prefetch('comandas', queryset=Comanda.objects.filter(organizacao=org_atual(request), fechada_em__isnull=True).prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)), to_attr='itens_da_org')))))
     for mesa in mesas:
         mesa.atual = next((c for c in mesa.comandas.all() if c.aberta), None)
     ocupadas = sum(mesa.atual is not None for mesa in mesas)
@@ -44,7 +44,7 @@ def abrir(request, pk):
 @transaction.atomic
 @login_required
 def comanda(request, pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
+    conta = get_object_or_404(Comanda.objects.select_for_update().select_related('mesa').prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)), to_attr='itens_da_org')), pk=pk, organizacao=org_atual(request))
     form = ItemForm(request.POST if request.method == 'POST' else None, org=org_atual(request))
     if request.method == 'POST':
         if not conta.aberta:
@@ -66,7 +66,7 @@ def comanda(request, pk):
 @transaction.atomic
 @login_required
 def remover_item(request, pk, item_pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
+    conta = get_object_or_404(Comanda.objects.select_for_update().select_related('mesa').prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)), to_attr='itens_da_org')), pk=pk, organizacao=org_atual(request))
     if conta.aberta:
         get_object_or_404(Item, pk=item_pk, comanda=conta, organizacao=org_atual(request)).delete()
         messages.success(request, 'Item removido.')
@@ -77,7 +77,7 @@ def remover_item(request, pk, item_pk):
 @transaction.atomic
 @login_required
 def fechar(request, pk):
-    conta = get_object_or_404(Comanda.objects.select_for_update().prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)))), pk=pk, organizacao=org_atual(request))
+    conta = get_object_or_404(Comanda.objects.select_for_update().select_related('mesa').prefetch_related(Prefetch('itens', queryset=Item.objects.filter(organizacao=org_atual(request)), to_attr='itens_da_org')), pk=pk, organizacao=org_atual(request))
     if not conta.aberta:
         return redirect('comanda', pk=pk)
     if request.method == 'POST':

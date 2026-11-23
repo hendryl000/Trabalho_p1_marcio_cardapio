@@ -12,6 +12,16 @@ class Organizacao(models.Model):
 
 
 class Perfil(models.Model):
+    class Papel(models.TextChoices):
+        ADMIN = 'admin', 'Administrador'
+        OPERADOR = 'operador', 'Operador'
+
+    papel = models.CharField(max_length=20, choices=Papel.choices, default=Papel.OPERADOR)
+
+    @property
+    def eh_admin(self):
+        return self.papel == self.Papel.ADMIN
+
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='perfil')
     organizacao = models.ForeignKey(Organizacao, on_delete=models.PROTECT)
 

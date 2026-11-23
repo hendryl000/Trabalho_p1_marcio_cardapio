@@ -50,6 +50,7 @@ class Comanda(DaOrganizacao):
     total_fechado = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     class Meta:
         ordering = ['-aberta_em']
+        indexes = [models.Index(fields=['organizacao', 'fechada_em'], name='comanda_org_fechamento')]
         constraints = [models.UniqueConstraint(fields=['mesa'], condition=Q(fechada_em__isnull=True), name='uma_comanda_aberta_por_mesa')]
     @property
     def aberta(self):
@@ -58,7 +59,10 @@ class Comanda(DaOrganizacao):
     def total(self):
         if not self.aberta:
             return self.total_fechado
-        return sum((item.subtotal for item in self.itens.filter(organizacao_id=self.organizacao_id)), Decimal('0.00'))
+        itens = getattr(self, 'itens_da_org', None)
+        if itens is None:
+            itens = self.itens.filter(organizacao_id=self.organizacao_id)
+        return sum((item.subtotal for item in itens), Decimal('0.00'))
     def __str__(self):
         return f'Comanda #{self.pk} - {self.mesa}'
 
