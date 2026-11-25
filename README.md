@@ -156,6 +156,7 @@ Base local: **http://127.0.0.1:8000**. Acrescente o caminho abaixo a essa base. 
 | Tela | Caminho | Para que serve / acesso |
 | --- | --- | --- |
 | Login | `/entrar/` | Entrar com usuário e senha |
+| Cadastro público | `/cadastrar/` | Criar conta, restaurante e Perfil administrador automaticamente |
 | Mesas / salão | `/` | Mesas livres e ocupadas; abrir e acompanhar comandas; exige Perfil |
 | Cardápio interno | `/cardapio/` | Consultar pratos e combos do restaurante; exige Perfil |
 | Cardápio do cliente | `/menu/<organizacao_id>/` | Catálogo público, sem login; exemplo: `/menu/1/` se a organização 1 existir |
@@ -178,6 +179,12 @@ Base local: **http://127.0.0.1:8000**. Acrescente o caminho abaixo a essa base. 
 As ações `/mesas/<id>/abrir/`, `/comandas/<id>/itens/<item_id>/remover/` e `/sair/` são **POST**: use os botões da interface, pois abrir esses endereços diretamente na barra do navegador não executa a ação.
 
 **Cardápio interno e público são diferentes:** `/cardapio/` é usado pela equipe; `/menu/<organizacao_id>/` é a experiência do cliente. O link **Cardápio do cliente ↗** do menu interno já abre a organização correta. No público, **Minha escolha** guarda uma seleção no navegador para mostrar ao atendente; não envia pedidos nem cria comandas.
+
+### Cadastro do próprio restaurante
+
+Uma pessoa pode acessar `/cadastrar/` sem login e informar nome do restaurante, nome de usuário, e-mail opcional e senha. Ao enviar o formulário, o sistema cria os três vínculos em uma operação: usuário, organização e Perfil com papel **Administrador**. A sessão é iniciada automaticamente e a pessoa é levada ao salão vazio do próprio restaurante. Nenhum dado de outro restaurante é copiado ou exibido. Nome de usuário repetido e senhas que não atendem às regras do Django são recusados com mensagem no formulário.
+
+Depois do cadastro, use **Cadastros** para adicionar pratos, combos e mesas. O cardápio público fica em `/menu/ID_DA_ORGANIZACAO/`; o link **Cardápio do cliente ↗** aparece no menu interno e já contém o ID correto. A criação pública não substitui o Django Admin: o Admin continua reservado ao superusuário para administrar organizações e perfis da plataforma.
 
 ### Filtros nos endereços
 

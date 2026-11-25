@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.db.models import Prefetch
 from core.tenancy import org_atual
 from django.contrib import messages
@@ -8,8 +9,19 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_GET
-from .forms import PratoForm, ComboForm, MesaForm, ItemForm
+from .forms import PratoForm, ComboForm, MesaForm, ItemForm, CadastroRestauranteForm
 from .models import Prato, Combo, Mesa, Comanda, Item
+
+def cadastrar_restaurante(request):
+    if request.user.is_authenticated:
+        return redirect('inicio')
+    form = CadastroRestauranteForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        usuario = form.save()
+        login(request, usuario)
+        messages.success(request, 'Restaurante criado. Seu ambiente está pronto para começar.')
+        return redirect('inicio')
+    return render(request, 'cardapio/cadastro_restaurante.html', {'form': form})
 
 @login_required
 def inicio(request):

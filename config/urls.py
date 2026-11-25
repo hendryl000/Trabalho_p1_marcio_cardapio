@@ -1,9 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from cardapio.views import cadastrar_restaurante
 
 urlpatterns = [
     path('entrar/', auth_views.LoginView.as_view(template_name='cardapio/login.html'), name='login'),
+    path('cadastrar/', cadastrar_restaurante, name='cadastrar_restaurante'),
     path('sair/', auth_views.LogoutView.as_view(), name='logout'),
     path('admin/', admin.site.urls),
     path('api/', include('cardapio.api_urls')),

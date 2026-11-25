@@ -5,6 +5,32 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from .models import Prato, Combo, Mesa, Comanda, Item
 
+class CadastroRestauranteTests(TestCase):
+    def test_cria_usuario_organizacao_e_perfil_admin_e_entra(self):
+        response = self.client.post(reverse('cadastrar_restaurante'), {
+            'nome_restaurante': 'Cantina de Teste',
+            'username': 'dono_cantina',
+            'email': 'dono@example.com',
+            'password1': 'UmaSenhaForte123!',
+            'password2': 'UmaSenhaForte123!',
+        })
+        self.assertRedirects(response, reverse('inicio'))
+        usuario = get_user_model().objects.get(username='dono_cantina')
+        self.assertEqual(usuario.email, 'dono@example.com')
+        self.assertTrue(usuario.is_authenticated)
+        perfil = Perfil.objects.get(usuario=usuario)
+        self.assertEqual(perfil.organizacao.nome, 'Cantina de Teste')
+        self.assertEqual(perfil.papel, Perfil.Papel.ADMIN)
+
+    def test_cadastro_nao_duplica_usuario_com_nome_existente(self):
+        get_user_model().objects.create_user('dono_cantina', password='OutraSenha123!')
+        response = self.client.post(reverse('cadastrar_restaurante'), {
+            'nome_restaurante': 'Outra Cantina', 'username': 'dono_cantina',
+            'password1': 'UmaSenhaForte123!', 'password2': 'UmaSenhaForte123!',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Organizacao.objects.filter(nome='Outra Cantina').count(), 0)
+
 class AtendimentoTests(TestCase):
     def setUp(self):
         self.org = Organizacao.objects.create(nome='Restaurante testes')

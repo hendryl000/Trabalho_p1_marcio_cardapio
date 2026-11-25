@@ -1,0 +1,16 @@
+{% extends 'cardapio/base.html' %}
+{% block titulo %}Criar restaurante · À Mesa{% endblock %}
+{% block navegacao %}{% endblock %}
+{% block conteudo %}
+<section class="card login-card">
+  <p class="eyebrow">COMECE AGORA</p>
+  <h1>Crie seu restaurante</h1>
+  <p class="muted">Seu espaço fica pronto em poucos segundos. Você será o administrador.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button>Criar restaurante</button>
+  </form>
+  <p class="login-link">Já tem uma conta? <a href="{% url 'login' %}">Entrar</a></p>
+</section>
+{% endblock %}

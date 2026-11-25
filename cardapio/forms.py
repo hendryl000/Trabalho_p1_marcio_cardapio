@@ -1,5 +1,23 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
+from core.models import Organizacao, Perfil
 from .models import Prato, Combo, Mesa, Item
+
+class CadastroRestauranteForm(UserCreationForm):
+    nome_restaurante = forms.CharField(label='Nome do restaurante', max_length=120)
+    email = forms.EmailField(label='E-mail', required=False)
+    class Meta:
+        model = get_user_model()
+        fields = ['nome_restaurante', 'username', 'email', 'password1', 'password2']
+    def save(self, commit=True):
+        usuario = super().save(commit=False)
+        usuario.email = self.cleaned_data.get('email', '')
+        if commit:
+            organizacao = Organizacao.objects.create(nome=self.cleaned_data['nome_restaurante'])
+            usuario.save()
+            Perfil.objects.create(usuario=usuario, organizacao=organizacao, papel=Perfil.Papel.ADMIN)
+        return usuario
 
 class FormDaOrganizacao(forms.ModelForm):
     def __init__(self, *args, org=None, **kwargs):
