@@ -1,26 +1,270 @@
-# Cardápio e comandas — P1 / P2
+# À Mesa — Cardápio e comandas
 
-Projeto Django da P1, evoluído com API REST (Aula 13) e isolamento por organização (Aula 14).
+Sistema Django para gerenciar restaurantes, pratos, combos, mesas e comandas, com cardápio público para clientes, API REST e dashboard de vendas. Cada usuário possui um Perfil vinculado a uma organização (restaurante); as telas internas mostram os dados dessa organização.
 
-## Executar no Windows (PowerShell)
+## Guia de instalação e uso
+
+- [Dependências](#dependências)
+- [Instalação no Windows](#instalação-no-windows-powershell)
+- [Primeiro acesso](#primeiro-acesso-usuário-organização-e-perfil)
+- [Dados de exemplo](#dados-de-exemplo)
+- [Como iniciar novamente](#como-iniciar-novamente)
+- [Caminhos das telas](#caminhos-das-telas)
+- [Fluxo de atendimento](#fluxo-de-atendimento)
+- [Configuração do banco](#configuração-do-banco)
+- [Problemas comuns](#problemas-comuns)
+- [API de pratos](#api-de-pratos)
+- [Validação e testes](#validar)
+
+## Dependências
+
+Instale **Python** e **Git** no computador. O ambiente local foi executado com Python **3.14.6**. No instalador do Python para Windows, habilite a opção de adicionar Python ao PATH.
+
+As bibliotecas abaixo estão fixadas em `requirements.txt`; o comando de instalação instala todas de uma vez.
+
+| Dependência | Versão no projeto | Uso |
+| --- | --- | --- |
+| Django | 5.2.17 | Aplicação web, autenticação, banco e painel administrativo |
+| Django REST Framework | 3.18.3 | API REST e interface navegável da API |
+| python-dotenv | 1.2.3 | Leitura da configuração do arquivo `.env` |
+| psycopg / psycopg-binary | 3.3.6 | Conexão com PostgreSQL, quando escolhido |
+| asgiref | 3.13.0 | Dependência de execução do Django |
+| sqlparse | 0.6.1 | Utilitários de SQL usados pelo Django |
+| tzdata | 2026.6 | Dados de fuso horário, inclusive no Windows |
+
+**SQLite já acompanha o Python**: não é necessário instalar um servidor de banco para rodar localmente. **Node.js e npm não são necessários**: HTML, CSS, JavaScript, ilustrações e Chart.js 4.5.1 já estão no repositório. A instalação inicial das bibliotecas exige internet.
+
+## Instalação no Windows (PowerShell)
+
+### 1. Clonar o projeto
+
+Abra o PowerShell na pasta em que deseja guardar o projeto e execute:
 
 ```powershell
+git clone https://github.com/hendryl000/Trabalho_p1_marcio_cardapio.git
+cd Trabalho_p1_marcio_cardapio
+```
+
+Todos os comandos seguintes devem ser executados nessa pasta, onde está o arquivo `manage.py`.
+
+### 2. Criar o ambiente e instalar as bibliotecas
+
+```powershell
+python --version
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Se o Windows reconhecer apenas `py`, use `py -m venv .venv` para criar o ambiente. Os comandos restantes usam diretamente o Python da `.venv`, portanto **não é necessário ativar o ambiente nem alterar a política de execução do PowerShell**.
+
+### 3. Preparar a configuração local
+
+Em uma instalação nova:
+
+```powershell
+Copy-Item .env.example .env
+.\.venv\Scripts\python.exe -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+notepad .env
+```
+
+Copie a chave gerada para `SECRET_KEY`, mantendo-a entre aspas simples no `.env`. Mantenha `DEBUG=True` e `DB_ENGINE=sqlite` para desenvolvimento local. Se já tiver um `.env`, edite o existente em vez de sobrescrevê-lo.
+
+### 4. Criar as tabelas, o administrador e iniciar
+
+```powershell
 .\.venv\Scripts\python.exe manage.py migrate
 .\.venv\Scripts\python.exe manage.py createsuperuser
+.\.venv\Scripts\python.exe manage.py check
 .\.venv\Scripts\python.exe manage.py runserver
 ```
 
-O clone preparado já possui `.venv` e as migrações locais aplicadas. Em uma instalação nova, crie seu usuário com `createsuperuser`, entre em `/admin/` e cadastre uma organização e um Perfil vinculando seu usuário a ela. O superusuário sem Perfil acessa o Admin, mas recebe 403 nas telas de negócio e na API.
+O comando `createsuperuser` solicita nome de usuário, e-mail e senha. A senha não aparece enquanto é digitada no terminal. Escolha suas próprias credenciais: **o clone não inclui usuários, senhas ou o banco de demonstração deste PC**.
 
-- Aplicação (exige login): http://127.0.0.1:8000/
-- Login do sistema: http://127.0.0.1:8000/entrar/
-- Login da API: http://127.0.0.1:8000/api-auth/login/?next=/api/pratos/
-- API navegável: http://127.0.0.1:8000/api/pratos/
-- Dados de demonstração opcionais: `python manage.py popular_demo --organizacao ID` (com o ambiente ativo; use o ID exibido no Admin). O comando não apaga registros e deve receber explicitamente a organização.
+Deixe o terminal aberto enquanto usa o sistema. Acesse [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/) e faça a configuração abaixo antes de abrir as telas internas.
 
-SQLite é o padrão. PostgreSQL pode ser configurado via `.env` com `DB_ENGINE=postgresql`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST` e `DB_PORT`. `.env`, `.venv` e o banco local ficam fora do Git.
+## Primeiro acesso: usuário, organização e perfil
+
+1. Entre no **Django Admin** (`/admin/`) com o superusuário criado.
+2. Em **Organizações**, crie o restaurante ou use uma organização existente. As migrações podem criar a “Organização padrão”.
+3. Em **Perfis**, adicione um Perfil: escolha seu usuário, o restaurante e o papel **Administrador**. Se já existir um Perfil para esse usuário, edite-o; cada usuário tem apenas um.
+4. Abra [o sistema](http://127.0.0.1:8000/). Se necessário, entre em [Login](http://127.0.0.1:8000/entrar/) com as mesmas credenciais.
+5. Para criar contas da equipe, cadastre usuários no Admin e crie um Perfil para cada um, escolhendo a organização e o papel adequado.
+
+**Criar o superusuário não cria automaticamente seu Perfil.** Sem esse vínculo, as telas internas e a API retornam 403. O superusuário ainda consegue acessar o Admin para configurar o vínculo.
+
+O papel **Administrador** do Perfil permite gráfico mensal e exportação CSV; **Operador** visualiza os quatro indicadores, ranking e distribuição. A restrição por papel está implementada no dashboard/relatórios; os demais cadastros exigem autenticação e organização, sem uma matriz completa de permissões por papel. O Django Admin é a administração global, reservada ao superusuário, e é diferente do papel Administrador do restaurante.
+
+No cabeçalho, **Minha conta** abre os dados do usuário/restaurante e o botão **Sair da conta**. A tela de login não exibe o menu interno.
+
+## Dados de exemplo
+
+Os comandos abaixo são opcionais. Execute em um segundo terminal aberto na pasta do projeto ou pare o servidor com `Ctrl + C` e inicie-o novamente depois.
+
+### Pratos, combos e mesas
+
+Descubra o ID do restaurante no Admin: ao abrir sua edição, o endereço termina em `/core/organizacao/ID/change/`. Também pode listar os IDs pelo terminal:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py shell -c "from core.models import Organizacao; print(list(Organizacao.objects.values_list('id', 'nome')))"
+```
+
+Se o ID escolhido for **1**, execute:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py popular_demo --organizacao 1
+```
+
+Substitua `1` pelo ID real. O comando prepara seis pratos de exemplo, dois combos e seis mesas, reaproveitando registros existentes sem apagar os dados. Ele **não cria usuário, Perfil ou vendas fechadas**.
+
+### Vendas para demonstrar o dashboard
+
+```powershell
+.\.venv\Scripts\python.exe manage.py popular_dashboard_demo
+```
+
+Esse comando cria uma organização separada chamada **Restaurante demonstração · Dashboard**, com vendas fictícias no mês atual e nos dois anteriores; não cria vendas futuras no mês atual. O terminal informa o ID. Se essa organização já tiver comandas, uma nova execução não altera os registros.
+
+Para visualizar esses dados, crie um usuário pelo Admin e um Perfil **Administrador** associado à organização de demonstração. Entre com esse usuário em `/entrar/` e abra `/dashboard/`. O comando não cria uma conta ou senha automaticamente. Uma conta vinculada a outro restaurante não verá essas vendas.
+
+## Como iniciar novamente
+
+Depois da primeira instalação, não precisa recriar o ambiente ou o administrador. Abra o terminal na pasta do projeto e execute:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py runserver
+```
+
+Neste PC, o projeto está em:
+
+```text
+C:\Users\hendr\Documents\Codex\2026-11-17\2304\outputs\Trabalho_p1_marcio_cardapio
+```
+
+Para entrar nessa pasta pelo PowerShell:
+
+```powershell
+cd "C:\Users\hendr\Documents\Codex\2026-11-17\2304\outputs\Trabalho_p1_marcio_cardapio"
+.\.venv\Scripts\python.exe manage.py runserver
+```
+
+Em outro computador, use a pasta em que você clonou. Para parar o servidor, pressione `Ctrl + C` no terminal. Após receber atualizações do projeto, instale novamente `requirements.txt` e execute `migrate` antes de iniciar.
+
+## Caminhos das telas
+
+Base local: **http://127.0.0.1:8000**. Acrescente o caminho abaixo a essa base. IDs são números reais dos registros; não digite os sinais `<` e `>`.
+
+| Tela | Caminho | Para que serve / acesso |
+| --- | --- | --- |
+| Login | `/entrar/` | Entrar com usuário e senha |
+| Mesas / salão | `/` | Mesas livres e ocupadas; abrir e acompanhar comandas; exige Perfil |
+| Cardápio interno | `/cardapio/` | Consultar pratos e combos do restaurante; exige Perfil |
+| Cardápio do cliente | `/menu/<organizacao_id>/` | Catálogo público, sem login; exemplo: `/menu/1/` se a organização 1 existir |
+| Dashboard | `/dashboard/` | Indicadores, ranking, distribuição e gráfico conforme o papel |
+| CSV | `/dashboard/exportar.csv` | Baixar relatório de comandas fechadas; Administrador do Perfil |
+| Histórico | `/historico/` | Consultar comandas fechadas do restaurante |
+| Cadastro de pratos | `/cadastros/pratos/` | Criar e listar pratos, bebidas, sobremesas etc. |
+| Cadastro de combos | `/cadastros/combos/` | Criar e listar combinações de pratos |
+| Cadastro de mesas | `/cadastros/mesas/` | Criar e listar mesas e capacidades |
+| Editar cadastro | `/cadastros/<tipo>/<id>/` | `tipo`: `pratos`, `combos` ou `mesas` |
+| Excluir cadastro | `/cadastros/<tipo>/<id>/excluir/` | Tela de confirmação; exclusão ocorre ao enviar o formulário |
+| Comanda | `/comandas/<id>/` | Ver itens e total; adicionar itens enquanto estiver aberta |
+| Fechar comanda | `/comandas/<id>/fechar/` | Conferir e confirmar o fechamento pelo formulário |
+| Administração global | `/admin/` | Gerenciar usuários, organizações e perfis com superusuário |
+| API de pratos | `/api/pratos/` | Lista e criação de pratos; login e Perfil obrigatórios |
+| Detalhe de prato na API | `/api/pratos/<id>/` | Consultar, alterar ou excluir prato da própria organização |
+| API do dashboard | `/api/dashboard/` | Indicadores em JSON, respeitando organização e papel |
+| Login da API | `/api-auth/login/?next=/api/pratos/` | Autenticar pela interface navegável do DRF |
+
+As ações `/mesas/<id>/abrir/`, `/comandas/<id>/itens/<item_id>/remover/` e `/sair/` são **POST**: use os botões da interface, pois abrir esses endereços diretamente na barra do navegador não executa a ação.
+
+**Cardápio interno e público são diferentes:** `/cardapio/` é usado pela equipe; `/menu/<organizacao_id>/` é a experiência do cliente. O link **Cardápio do cliente ↗** do menu interno já abre a organização correta. No público, **Minha escolha** guarda uma seleção no navegador para mostrar ao atendente; não envia pedidos nem cria comandas.
+
+### Filtros nos endereços
+
+- Cardápio: `/cardapio/?q=frango&categoria=principal`.
+- Público: `/menu/1/?q=suco&categoria=bebida` (troque o ID conforme o restaurante).
+- Dashboard: `/dashboard/?inicio=2026-11-01&fim=2026-11-30`.
+- CSV: `/dashboard/exportar.csv?inicio=2026-11-01&fim=2026-11-30`.
+- API: `/api/dashboard/?inicio=2026-11-01&fim=2026-11-30`.
+
+As datas na URL usam `AAAA-MM-DD`; escolha um período com vendas. Sem datas, o dashboard considera todo o histórico de comandas fechadas. Um período invertido ou inválido retorna erro 400. O botão de CSV mantém o período aplicado na tela.
+
+## Fluxo de atendimento
+
+1. Cadastre **pratos**, depois **combos** e **mesas**, ou use os exemplos.
+2. No salão (`/`), abra uma comanda pelo botão da mesa desejada.
+3. Na comanda, selecione **um prato ou um combo**, informe a quantidade e adicione. Repita para os demais itens.
+4. Confira o total e, ao finalizar o atendimento, confirme **Fechar comanda**. A mesa fica disponível novamente.
+5. Consulte o atendimento no **Histórico** e os resultados no **Dashboard**. Comandas abertas não entram nas métricas de vendas.
+6. Como Administrador do Perfil, aplique o período e exporte o **CSV**.
+
+Pratos/combos com histórico podem ter exclusão bloqueada para preservar as vendas; marque-os como indisponíveis quando necessário.
+
+## Configuração do banco
+
+O arquivo `.env` fica ao lado de `manage.py`. As opções lidas pelo projeto são:
+
+| Variável | Uso |
+| --- | --- |
+| `SECRET_KEY` | Chave da aplicação |
+| `DEBUG` | `True` no desenvolvimento local |
+| `DB_ENGINE` | `sqlite` (padrão) ou `postgresql` |
+| `DB_NAME` | Nome do banco PostgreSQL |
+| `DB_USER` / `DB_PASSWORD` | Credenciais do PostgreSQL |
+| `DB_HOST` / `DB_PORT` | Endereço e porta do PostgreSQL |
+| `LOG_SQL` | `True` registra consultas no terminal quando `DEBUG=True` |
+
+Com SQLite, os dados ficam em `db.sqlite3`, na pasta do projeto; as variáveis `DB_NAME`, `DB_USER` etc. não são usadas. `.env`, `.venv`, banco SQLite e senhas locais não são enviados ao GitHub.
+
+Para PostgreSQL, instale e inicie o servidor de banco, crie um banco e usuário com acesso e ajuste o `.env`, por exemplo:
+
+```dotenv
+DB_ENGINE=postgresql
+DB_NAME=cardapio_db
+DB_USER=postgres
+DB_PASSWORD=sua_senha_local
+DB_HOST=localhost
+DB_PORT=5432
+```
+
+Em seguida execute `migrate` e prepare usuário/Perfil nesse banco. Alterar o banco não transfere automaticamente os dados do SQLite. A validação registrada neste projeto foi feita com SQLite; PostgreSQL não foi validado nesta entrega.
+
+`runserver` e `127.0.0.1` são usados para desenvolvimento no próprio computador. Para compartilhar o cardápio fora dele, é necessário configurar uma implantação e um domínio; este guia não publica o sistema na internet.
+
+## Problemas comuns
+
+| Problema | Como resolver |
+| --- | --- |
+| `python` não reconhecido | Confira a instalação/PATH ou use `py` para criar a `.venv` |
+| `No module named django` | Instale `requirements.txt` e execute com `.\.venv\Scripts\python.exe` |
+| `no such table` / tabela inexistente | Execute `manage.py migrate` com o Python da `.venv` |
+| 403: credenciais não fornecidas na API | Entre em `/api-auth/login/?next=/api/pratos/` no mesmo navegador |
+| Login funciona, mas telas retornam 403 | Crie/confira o Perfil e a organização do usuário no Admin |
+| CSV retorna 403 ou gráfico mensal não aparece | Confira se o Perfil tem papel Administrador |
+| Dashboard zerado | Confira organização e período; feche uma comanda ou use a demonstração e seu Perfil correspondente |
+| Cardápio público vazio | Confira o ID do restaurante e se há pratos/combos disponíveis nessa organização |
+| Registro retorna 404 | Confira ID e organização; usuários não acessam registros de outro restaurante |
+| Porta 8000 em uso | Use `manage.py runserver 8001` e abra `http://127.0.0.1:8001/` |
+| Esqueci a senha | Execute `.\.venv\Scripts\python.exe manage.py changepassword NOME_DO_USUARIO` |
+| Estilo antigo no navegador | Atualize com `Ctrl + F5`; reinicie o servidor se ele estiver sem recarga automática |
+
+## Estrutura do projeto
+
+```text
+config/                  Configurações e URLs principais
+core/                    Organização, Perfil e isolamento por restaurante
+cardapio/                Models, formulários, views, API e testes
+cardapio/templates/      Telas HTML
+cardapio/static/          CSS, JavaScript, ilustrações e Chart.js
+cardapio/management/      Comandos de demonstração e auditoria SQL
+manage.py                Entrada dos comandos Django
+requirements.txt         Dependências Python com versões fixadas
+.env.example             Modelo de configuração local
+MELHORIAS_P1.md           Revisão da P1
+BACKLOG_P2.md             Planejamento da P2
+```
+
+As seções abaixo detalham a API, as entregas das aulas e as verificações executadas.
 
 ## API de pratos
 
@@ -65,7 +309,7 @@ A suíte cobre regressões da P1 e CRUD, validação, autenticação por sessão
 - Serializer com campos explícitos, generics e URLs separadas de pratos.
 - Planejamento da P2 em [BACKLOG_P2.md](BACKLOG_P2.md).
 
-A Aula 14 implementa organizações e login nas telas HTML. Papéis administrador/operador e dashboard continuam no backlog das próximas aulas. O Django Admin é reservado ao superusuário do sistema; não equivale ao futuro papel administrador de uma organização.
+A Aula 14 implementa organizações e login nas telas HTML. A Aula 17 adiciona dashboard e papéis administrador/operador para os relatórios, descritos ao final deste documento. O Django Admin é reservado ao superusuário do sistema e não equivale ao papel administrador de uma organização.
 
 Referências técnicas: [generics do DRF](https://www.django-rest-framework.org/api-guide/generic-views/) e [permissões do DRF](https://www.django-rest-framework.org/api-guide/permissions/).
 
@@ -79,7 +323,7 @@ Referências técnicas: [generics do DRF](https://www.django-rest-framework.org/
 - `org_atual(request)` centraliza o vínculo. Criações usam a organização da sessão; formulários omitem esse campo e filtram FK/M2M. Models validam vínculos FK e o sinal M2M impede pratos de outra organização em combos.
 - A mesa é única por `(organizacao, numero)`; duplicatas na mesma organização geram erro amigável no formulário.
 - O Admin global é reservado ao dono do sistema (superusuário), com colunas/filtros de organização. A organização de um cadastro existente não é alterável pelo Admin. Para criar um combo no Admin, salve a organização e depois escolha seus pratos.
-- No HTML, o cabeçalho mostra usuário e organização e permite sair por POST com CSRF.
+- No HTML, o botão Minha conta abre usuário e organização e permite sair por POST com CSRF; o menu interno não aparece no login.
 
 Antes de migrar o banco local, foi criado um backup SQLite fora do Git (`work/antes-aula14.sqlite3` no diretório da atividade). A comparação de todas as colunas antigas confirmou preservação integral: 7 pratos, 2 combos, 6 mesas, 5 vínculos combo/prato e 1 usuário. O banco local ainda não tinha comandas nem itens; o teste de migração cobre esses registros também.
 
